@@ -31,7 +31,7 @@ public class MysqlDumpTest {
         controller.setConnectionCharset(Charset.forName("UTF-8"));
         controller.setSlaveId(3344L);
         controller.setDetectingEnable(false);
-        controller.setMasterInfo(new AuthenticationInfo(new InetSocketAddress("10.20.151.3", 3306), "ottermysql", "ottermysql"));
+        controller.setMasterInfo(new AuthenticationInfo(new InetSocketAddress("127.0.0.1", 3306), "xxxxx", "xxxxx"));
         controller.setMasterPosition(startPosition);
         controller.setEventSink(new AbstractCanalEventSinkTest<List<Entry>>() {
 
@@ -42,7 +42,7 @@ public class MysqlDumpTest {
                 for (Entry entry : entrys) {
                     if (entry.getEntryType() == EntryType.TRANSACTIONBEGIN
                         || entry.getEntryType() == EntryType.TRANSACTIONEND
-                         || entry.getEntryType() == EntryType.HEARTBEAT) {
+                        || entry.getEntryType() == EntryType.HEARTBEAT) {
                         continue;
                     }
 
@@ -56,10 +56,11 @@ public class MysqlDumpTest {
 
                     EventType eventType = rowChage.getEventType();
                     System.out.println(String.format("================> binlog[%s:%s] , name[%s,%s] , eventType : %s",
-                                                     entry.getHeader().getLogfileName(),
-                                                     entry.getHeader().getLogfileOffset(),
-                                                     entry.getHeader().getSchemaName(),
-                                                     entry.getHeader().getTableName(), eventType));
+                        entry.getHeader().getLogfileName(),
+                        entry.getHeader().getLogfileOffset(),
+                        entry.getHeader().getSchemaName(),
+                        entry.getHeader().getTableName(),
+                        eventType));
 
                     if (eventType == EventType.QUERY || rowChage.getIsDdl()) {
                         System.out.println(" sql ----> " + rowChage.getSql());
