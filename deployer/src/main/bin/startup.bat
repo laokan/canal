@@ -5,9 +5,9 @@
 set ENV_PATH=.\
 if "%OS%" == "Windows_NT" set ENV_PATH=%~dp0%
 
-conf_dir=%ENV_PATH%\..\conf
-canal_conf=%conf_dir%\canal.properties
-logback_configurationFile=%conf_dir%\logback.xml
+set conf_dir=%ENV_PATH%\..\conf
+set canal_conf=%conf_dir%\canal.properties
+set logback_configurationFile=%conf_dir%\logback.xml
 
 set CLASSPATH=%conf_dir%
 set CLASSPATH=%conf_dir%\..\lib\*;%CLASSPATH%
@@ -18,5 +18,8 @@ set JAVA_DEBUG_OPT= -server -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:tra
 set CANAL_OPTS= -DappName=otter-canal -Dlogback.configurationFile="%logback_configurationFile%" -Dcanal.conf="%canal_conf%"
 
 set JAVA_OPTS= %JAVA_MEM_OPTS% %JAVA_OPTS_EXT% %JAVA_DEBUG_OPT% %CANAL_OPTS%
+
+set CMD_STR= java %JAVA_OPTS% -classpath "%CLASSPATH%" java %JAVA_OPTS% -classpath "%CLASSPATH%" com.alibaba.otter.canal.deployer.CanalLauncher
+echo start cmd : %CMD_STR%
 
 java %JAVA_OPTS% -classpath "%CLASSPATH%" com.alibaba.otter.canal.deployer.CanalLauncher

@@ -20,13 +20,14 @@ import com.taobao.tddl.dbsync.binlog.LogEvent;
 public class GroupEventPaserTest {
 
     private static final String DETECTING_SQL = "insert into retl.xdual values(1,now()) on duplicate key update x=now()";
-    private static final String MYSQL_ADDRESS = "10.20.153.51";
-    private static final String USERNAME      = "retl";
-    private static final String PASSWORD      = "retl";
+    private static final String MYSQL_ADDRESS = "127.0.0.1";
+    private static final String USERNAME      = "xxxxx";
+    private static final String PASSWORD      = "xxxxx";
 
     @Test
     public void testMysqlWithMysql() {
-        // MemoryEventStoreWithBuffer eventStore = new MemoryEventStoreWithBuffer();
+        // MemoryEventStoreWithBuffer eventStore = new
+        // MemoryEventStoreWithBuffer();
         // eventStore.setBufferSize(8196);
 
         GroupEventSink eventSink = new GroupEventSink(3);

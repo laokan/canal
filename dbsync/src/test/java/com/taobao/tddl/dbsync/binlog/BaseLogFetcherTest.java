@@ -8,8 +8,11 @@ import java.util.BitSet;
 import com.taobao.tddl.dbsync.binlog.event.QueryLogEvent;
 import com.taobao.tddl.dbsync.binlog.event.RowsLogBuffer;
 import com.taobao.tddl.dbsync.binlog.event.RowsLogEvent;
+import com.taobao.tddl.dbsync.binlog.event.RowsQueryLogEvent;
 import com.taobao.tddl.dbsync.binlog.event.TableMapLogEvent;
+import com.taobao.tddl.dbsync.binlog.event.XidLogEvent;
 import com.taobao.tddl.dbsync.binlog.event.TableMapLogEvent.ColumnInfo;
+import com.taobao.tddl.dbsync.binlog.event.mariadb.AnnotateRowsEvent;
 
 public class BaseLogFetcherTest {
 
@@ -23,6 +26,25 @@ public class BaseLogFetcherTest {
         System.out.println("sql : " + event.getQuery());
     }
 
+    protected void parseRowsQueryEvent(RowsQueryLogEvent event) throws Exception {
+        System.out.println(String.format("================> binlog[%s:%s]", binlogFileName,
+                                         event.getHeader().getLogPos() - event.getHeader().getEventLen()));
+        System.out.println("sql : " + new String(event.getRowsQuery().getBytes("ISO-8859-1"), charset.name()));
+    }
+    
+    protected void parseAnnotateRowsEvent(AnnotateRowsEvent event) throws Exception {
+        System.out.println(String.format("================> binlog[%s:%s]", binlogFileName,
+                                         event.getHeader().getLogPos() - event.getHeader().getEventLen()));
+        System.out.println("sql : " + new String(event.getRowsQuery().getBytes("ISO-8859-1"), charset.name()));
+    }
+    
+    protected void parseXidEvent(XidLogEvent event) throws Exception {
+        System.out.println(String.format("================> binlog[%s:%s]", binlogFileName,
+                                         event.getHeader().getLogPos() - event.getHeader().getEventLen()));
+        System.out.println("xid : " + event.getXid());
+    }
+
+
     protected void parseRowsEvent(RowsLogEvent event) {
         try {
             System.out.println(String.format("================> binlog[%s:%s] , name[%s,%s]", binlogFileName,
@@ -33,10 +55,11 @@ public class BaseLogFetcherTest {
             BitSet changeColumns = event.getChangeColumns();
             while (buffer.nextOneRow(columns)) {
                 // 处理row记录
-                if (LogEvent.WRITE_ROWS_EVENT == event.getHeader().getType()) {
+                int type = event.getHeader().getType();
+                if (LogEvent.WRITE_ROWS_EVENT_V1 == type || LogEvent.WRITE_ROWS_EVENT == type) {
                     // insert的记录放在before字段中
                     parseOneRow(event, buffer, columns, true);
-                } else if (LogEvent.DELETE_ROWS_EVENT == event.getHeader().getType()) {
+                } else if (LogEvent.DELETE_ROWS_EVENT_V1 == type || LogEvent.DELETE_ROWS_EVENT == type) {
                     // delete的记录放在before字段中
                     parseOneRow(event, buffer, columns, false);
                 } else {
@@ -74,7 +97,11 @@ public class BaseLogFetcherTest {
                 //
             } else {
                 final Serializable value = buffer.getValue();
-                System.out.println(value);
+                if (value instanceof byte[]) {
+                    System.out.println(new String((byte[]) value));
+                } else {
+                    System.out.println(value);
+                }
             }
         }
 

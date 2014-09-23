@@ -54,11 +54,11 @@ public class ServerRunningMonitor extends AbstractCanalLifeCycle {
             public void handleDataChange(String dataPath, Object data) throws Exception {
                 MDC.put("destination", destination);
                 ServerRunningData runningData = JsonUtils.unmarshalFromByte((byte[]) data, ServerRunningData.class);
-                if (!isMine(runningData.getCid())) {
+                if (!isMine(runningData.getAddress())) {
                     mutex.set(false);
                 }
 
-                if (!runningData.isActive() && isMine(runningData.getCid())) { // 说明出现了主动释放的操作，并且本机之前是active
+                if (!runningData.isActive() && isMine(runningData.getAddress())) { // 说明出现了主动释放的操作，并且本机之前是active
                     release = true;
                     releaseRunning();// 彻底释放mainstem
                 }
@@ -69,7 +69,7 @@ public class ServerRunningMonitor extends AbstractCanalLifeCycle {
             public void handleDataDeleted(String dataPath) throws Exception {
                 MDC.put("destination", destination);
                 mutex.set(false);
-                if (!release && isMine(activeData.getCid())) {
+                if (!release && activeData != null && isMine(activeData.getAddress())) {
                     // 如果上一次active的状态就是本机，则即时触发一下active抢占
                     initRunning();
                 } else {
@@ -89,13 +89,23 @@ public class ServerRunningMonitor extends AbstractCanalLifeCycle {
 
     public void start() {
         super.start();
-
+        processStart();
         if (zkClient != null) {
+            // 如果需要尽可能释放instance资源，不需要监听running节点，不然即使stop了这台机器，另一台机器立马会start
             String path = ZookeeperPathUtils.getDestinationServerRunning(destination);
             zkClient.subscribeDataChanges(path, dataListener);
+
             initRunning();
         } else {
             processActiveEnter();// 没有zk，直接启动
+        }
+    }
+
+    public void release() {
+        if (zkClient != null) {
+            releaseRunning(); // 尝试一下release
+        } else {
+            processActiveExit(); // 没有zk，直接启动
         }
     }
 
@@ -105,14 +115,15 @@ public class ServerRunningMonitor extends AbstractCanalLifeCycle {
         if (zkClient != null) {
             String path = ZookeeperPathUtils.getDestinationServerRunning(destination);
             zkClient.unsubscribeDataChanges(path, dataListener);
+
             releaseRunning(); // 尝试一下release
         } else {
             processActiveExit(); // 没有zk，直接启动
         }
-
+        processStop();
     }
 
-    public void initRunning() {
+    private void initRunning() {
         if (!isStart()) {
             return;
         }
@@ -159,10 +170,11 @@ public class ServerRunningMonitor extends AbstractCanalLifeCycle {
             ServerRunningData eventData = JsonUtils.unmarshalFromByte(bytes, ServerRunningData.class);
             activeData = eventData;// 更新下为最新值
             // 检查下nid是否为自己
-            boolean result = isMine(activeData.getCid());
+            boolean result = isMine(activeData.getAddress());
             if (!result) {
-                logger.warn("canal is running in node[{}] , but not in node[{}]", activeData.getCid(),
-                            serverData.getCid());
+                logger.warn("canal is running in node[{}] , but not in node[{}]",
+                    activeData.getCid(),
+                    serverData.getCid());
             }
             return result;
         } catch (ZkNoNodeException e) {
@@ -178,7 +190,7 @@ public class ServerRunningMonitor extends AbstractCanalLifeCycle {
         }
     }
 
-    public boolean releaseRunning() {
+    private boolean releaseRunning() {
         if (check()) {
             String path = ZookeeperPathUtils.getDestinationServerRunning(destination);
             zkClient.delete(path);
@@ -192,8 +204,28 @@ public class ServerRunningMonitor extends AbstractCanalLifeCycle {
 
     // ====================== helper method ======================
 
-    private boolean isMine(Long targetNid) {
-        return targetNid.equals(serverData.getCid());
+    private boolean isMine(String address) {
+        return address.equals(serverData.getAddress());
+    }
+
+    private void processStart() {
+        if (listener != null) {
+            try {
+                listener.processStart();
+            } catch (Exception e) {
+                logger.error("processStart failed", e);
+            }
+        }
+    }
+
+    private void processStop() {
+        if (listener != null) {
+            try {
+                listener.processStop();
+            } catch (Exception e) {
+                logger.error("processStop failed", e);
+            }
+        }
     }
 
     private void processActiveEnter() {
@@ -201,7 +233,7 @@ public class ServerRunningMonitor extends AbstractCanalLifeCycle {
             try {
                 listener.processActiveEnter();
             } catch (Exception e) {
-                logger.error("processSwitchActive failed", e);
+                logger.error("processActiveEnter failed", e);
             }
         }
     }
@@ -211,7 +243,7 @@ public class ServerRunningMonitor extends AbstractCanalLifeCycle {
             try {
                 listener.processActiveExit();
             } catch (Exception e) {
-                logger.error("processSwitchActive failed", e);
+                logger.error("processActiveExit failed", e);
             }
         }
     }

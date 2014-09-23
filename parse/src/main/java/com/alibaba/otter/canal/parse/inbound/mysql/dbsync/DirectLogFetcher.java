@@ -38,6 +38,8 @@ public class DirectLogFetcher extends LogFetcher {
 
     private SocketChannel         channel;
 
+    // private BufferedInputStream input;
+
     public DirectLogFetcher(){
         super(DEFAULT_INITIAL_CAPACITY, DEFAULT_GROWTH_FACTOR);
     }
@@ -52,6 +54,9 @@ public class DirectLogFetcher extends LogFetcher {
 
     public void start(SocketChannel channel) throws IOException {
         this.channel = channel;
+        // 和mysql driver一样，提供buffer机制，提升读取binlog速度
+        // this.input = new
+        // BufferedInputStream(channel.socket().getInputStream(), 16384);
     }
 
     /**
@@ -80,7 +85,8 @@ public class DirectLogFetcher extends LogFetcher {
             if (mark != 0) {
                 if (mark == 255) // error from master
                 {
-                    // Indicates an error, for example trying to fetch from wrong
+                    // Indicates an error, for example trying to fetch from
+                    // wrong
                     // binlog position.
                     position = NET_HEADER_SIZE + 1;
                     final int errno = getInt16();
@@ -91,7 +97,8 @@ public class DirectLogFetcher extends LogFetcher {
                 } else if (mark == 254) {
                     // Indicates end of stream. It's not clear when this would
                     // be sent.
-                    logger.warn("Received EOF packet from server, apparent" + " master disconnected.");
+                    logger.warn("Received EOF packet from server, apparent"
+                                + " master disconnected. It's may be duplicate slaveId , check instance config");
                     return false;
                 } else {
                     // Should not happen.
@@ -149,6 +156,13 @@ public class DirectLogFetcher extends LogFetcher {
                 throw new IOException("Unexpected End Stream");
             }
         }
+
+        // for (int count, n = 0; n < len; n += count) {
+        // if (0 > (count = input.read(buffer, off + n, len - n))) {
+        // // Reached end of input stream
+        // return false;
+        // }
+        // }
 
         if (limit < off + len) limit = off + len;
         return true;

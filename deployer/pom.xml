@@ -3,7 +3,7 @@
 	<parent>
 		<groupId>com.alibaba.otter</groupId>
 		<artifactId>canal</artifactId>
-		<version>1.0.3-SNAPSHOT</version>
+		<version>1.0.19-SNAPSHOT</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
 	<groupId>com.alibaba.otter</groupId>
@@ -27,6 +27,12 @@
 					<archive>
 						<addMavenDescriptor>true</addMavenDescriptor>
 					</archive>
+					<excludes>
+						<exclude>**/logback.xml</exclude>
+						<exclude>**/canal.properties</exclude>
+						<exclude>**/spring/**</exclude>
+						<exclude>**/example/**</exclude>
+					</excludes>
 				</configuration>
 			</plugin>
 
@@ -74,26 +80,6 @@
 							</descriptors>
 							<finalName>canal</finalName>
 							<outputDirectory>${project.build.directory}</outputDirectory>
-						</configuration>
-					</plugin>
-
-					<!-- 对装配出来的目录执行autoconfig -->
-					<plugin>
-						<groupId>com.alibaba.maven.plugins</groupId>
-						<artifactId>maven-autoconf-plugin</artifactId>
-						<executions>
-							<execution>
-								<goals>
-									<goal>config</goal>
-								</goals>
-								<phase>pre-integration-test</phase>
-							</execution>
-						</executions>
-						<configuration>
-							<destFiles>
-								<destFile>${project.build.directory}/${project.artifactId}</destFile>
-							</destFiles>
-							<!-- 各个项目可能还有一些特定的配置 -->
 						</configuration>
 					</plugin>
 				</plugins>

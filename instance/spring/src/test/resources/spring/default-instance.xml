@@ -30,7 +30,6 @@
 			</list>
 		</property>
 	</bean>
-	<bean id="canalInstanceGenerator" class="com.alibaba.otter.canal.instance.spring.SpringCanalInstanceGenerator"/>
 	
 	<bean id="instance" class="com.alibaba.otter.canal.instance.spring.CanalInstanceWithSpring">
 		<property name="destination" value="${canal.instance.destination}" />
@@ -107,7 +106,7 @@
 		</property>
 		
 		<!-- 最大事务解析大小，超过该大小后事务将被切分为多个事务投递 -->
-		<property name="transactionSize" value="${canal.instance.transactionn.size:1024}" />
+		<property name="transactionSize" value="${canal.instance.transaction.size:1024}" />
 		
 		<!-- 网络链接参数 -->
 		<property name="receiveBufferSize" value="${canal.instance.network.receiveBufferSize:16384}" />
@@ -168,5 +167,7 @@
 				<property name="timestamp" value="${canal.instance.standby.timestamp}" />
 			</bean>
 		</property>
+		<property name="filterQueryDml" value="${canal.instance.filter.query.dml:false}" />
+		<property name="filterQueryDcl" value="${canal.instance.filter.query.dcl:false}" />
 	</bean>
 </beans>

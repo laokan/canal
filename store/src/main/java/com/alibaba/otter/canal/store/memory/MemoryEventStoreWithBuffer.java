@@ -8,6 +8,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.alibaba.otter.canal.protocol.CanalEntry;
+import com.alibaba.otter.canal.protocol.CanalEntry.EventType;
 import com.alibaba.otter.canal.protocol.position.LogPosition;
 import com.alibaba.otter.canal.protocol.position.Position;
 import com.alibaba.otter.canal.protocol.position.PositionRange;
@@ -56,6 +57,7 @@ public class MemoryEventStoreWithBuffer extends AbstractCanalStoreScavenge imple
     private Condition         notEmpty      = lock.newCondition();
 
     private BatchMode         batchMode     = BatchMode.ITEMSIZE;           // 默认为内存大小模式
+    private boolean           ddlIsolation  = false;
 
     public MemoryEventStoreWithBuffer(){
 
@@ -246,11 +248,7 @@ public class MemoryEventStoreWithBuffer extends AbstractCanalStoreScavenge imple
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
-            if (checkUnGetSlotAt((LogPosition) start, 1)) {// 注意这里直接使用get操作，有数据就取
-                return doGet(start, batchSize);
-            } else {
-                return new Events<Event>();
-            }
+            return doGet(start, batchSize);
         } finally {
             lock.unlock();
         }
@@ -274,25 +272,48 @@ public class MemoryEventStoreWithBuffer extends AbstractCanalStoreScavenge imple
 
         Events<Event> result = new Events<Event>();
         List<Event> entrys = result.getEvents();
+        long memsize = 0;
         if (batchMode.isItemSize()) {
             end = (next + batchSize - 1) < maxAbleSequence ? (next + batchSize - 1) : maxAbleSequence;
             // 提取数据并返回
             for (; next <= end; next++) {
-                entrys.add(entries[getIndex(next)]);
+                Event event = entries[getIndex(next)];
+                if (ddlIsolation && isDdl(event.getEntry().getHeader().getEventType())) {
+                    // 如果是ddl隔离，直接返回
+                    if (entrys.size() == 0) {
+                        entrys.add(event);// 如果没有DML事件，加入当前的DDL事件
+                        end = next; // 更新end为当前
+                    } else {
+                        // 如果之前已经有DML事件，直接返回了，因为不包含当前next这记录，需要回退一个位置
+                        end = next - 1; // next-1一定大于current，不需要判断
+                    }
+                    break;
+                } else {
+                    entrys.add(event);
+                }
             }
-
         } else {
-            long memsize = 0;
             long maxMemSize = batchSize * bufferMemUnit;
             for (; memsize <= maxMemSize && next <= maxAbleSequence; next++) {
                 // 永远保证可以取出第一条的记录，避免死锁
                 Event event = entries[getIndex(next)];
-                entrys.add(event);
-                memsize += calculateSize(event);
-                end = next;// 记录end位点
+                if (ddlIsolation && isDdl(event.getEntry().getHeader().getEventType())) {
+                    // 如果是ddl隔离，直接返回
+                    if (entrys.size() == 0) {
+                        entrys.add(event);// 如果没有DML事件，加入当前的DDL事件
+                        end = next; // 更新end为当前
+                    } else {
+                        // 如果之前已经有DML事件，直接返回了，因为不包含当前next这记录，需要回退一个位置
+                        end = next - 1; // next-1一定大于current，不需要判断
+                    }
+                    break;
+                } else {
+                    entrys.add(event);
+                    memsize += calculateSize(event);
+                    end = next;// 记录end位点
+                }
             }
 
-            getMemSize.addAndGet(memsize);
         }
 
         PositionRange<LogPosition> range = new PositionRange<LogPosition>();
@@ -305,7 +326,8 @@ public class MemoryEventStoreWithBuffer extends AbstractCanalStoreScavenge imple
         for (int i = entrys.size() - 1; i >= 0; i--) {
             Event event = entrys.get(i);
             if (CanalEntry.EntryType.TRANSACTIONBEGIN == event.getEntry().getEntryType()
-                || CanalEntry.EntryType.TRANSACTIONEND == event.getEntry().getEntryType()) {
+                || CanalEntry.EntryType.TRANSACTIONEND == event.getEntry().getEntryType()
+                || isDdl(event.getEntry().getHeader().getEventType())) {
                 // 将事务头/尾设置可被为ack的点
                 range.setAck(CanalEventUtils.createPosition(event));
                 break;
@@ -313,6 +335,7 @@ public class MemoryEventStoreWithBuffer extends AbstractCanalStoreScavenge imple
         }
 
         if (getSequence.compareAndSet(current, end)) {
+            getMemSize.addAndGet(memsize);
             notFull.signal();
             return result;
         } else {
@@ -327,15 +350,18 @@ public class MemoryEventStoreWithBuffer extends AbstractCanalStoreScavenge imple
             long firstSeqeuence = ackSequence.get();
             if (firstSeqeuence == INIT_SQEUENCE && firstSeqeuence < putSequence.get()) {
                 // 没有ack过数据
-                Event event = entries[getIndex(firstSeqeuence + 1)]; // 最后一次ack为-1，需要移动到下一条,included = false
+                Event event = entries[getIndex(firstSeqeuence + 1)]; // 最后一次ack为-1，需要移动到下一条,included
+                                                                     // = false
                 return CanalEventUtils.createPosition(event, false);
             } else if (firstSeqeuence > INIT_SQEUENCE && firstSeqeuence < putSequence.get()) {
                 // ack未追上put操作
-                Event event = entries[getIndex(firstSeqeuence + 1)]; // 最后一次ack的位置数据 + 1
+                Event event = entries[getIndex(firstSeqeuence + 1)]; // 最后一次ack的位置数据
+                                                                     // + 1
                 return CanalEventUtils.createPosition(event, true);
             } else if (firstSeqeuence > INIT_SQEUENCE && firstSeqeuence == putSequence.get()) {
                 // 已经追上，store中没有数据
-                Event event = entries[getIndex(firstSeqeuence)]; // 最后一次ack的位置数据，和last为同一条，included = false
+                Event event = entries[getIndex(firstSeqeuence)]; // 最后一次ack的位置数据，和last为同一条，included
+                                                                 // = false
                 return CanalEventUtils.createPosition(event, false);
             } else {
                 // 没有任何数据
@@ -356,7 +382,9 @@ public class MemoryEventStoreWithBuffer extends AbstractCanalStoreScavenge imple
                 return CanalEventUtils.createPosition(event, true);
             } else if (latestSequence > INIT_SQEUENCE && latestSequence == ackSequence.get()) {
                 // ack已经追上了put操作
-                Event event = entries[(int) putSequence.get() & indexMask]; // 最后一次写入的数据，included = false
+                Event event = entries[(int) putSequence.get() & indexMask]; // 最后一次写入的数据，included
+                                                                            // =
+                                                                            // false
                 return CanalEventUtils.createPosition(event, false);
             } else {
                 // 没有任何数据
@@ -511,6 +539,12 @@ public class MemoryEventStoreWithBuffer extends AbstractCanalStoreScavenge imple
         return (int) sequcnce & indexMask;
     }
 
+    private boolean isDdl(EventType type) {
+        return type == EventType.ALTER || type == EventType.CREATE || type == EventType.ERASE
+               || type == EventType.RENAME || type == EventType.TRUNCATE || type == EventType.CINDEX
+               || type == EventType.DINDEX;
+    }
+
     // ================ setter / getter ==================
 
     public void setBufferSize(int bufferSize) {
@@ -523,6 +557,10 @@ public class MemoryEventStoreWithBuffer extends AbstractCanalStoreScavenge imple
 
     public void setBatchMode(BatchMode batchMode) {
         this.batchMode = batchMode;
+    }
+
+    public void setDdlIsolation(boolean ddlIsolation) {
+        this.ddlIsolation = ddlIsolation;
     }
 
 }

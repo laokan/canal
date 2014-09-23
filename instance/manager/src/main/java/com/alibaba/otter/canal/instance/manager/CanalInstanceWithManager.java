@@ -46,8 +46,8 @@ import com.alibaba.otter.canal.parse.index.MetaLogPositionManager;
 import com.alibaba.otter.canal.parse.index.PeriodMixedLogPositionManager;
 import com.alibaba.otter.canal.parse.index.ZooKeeperLogPositionManager;
 import com.alibaba.otter.canal.parse.support.AuthenticationInfo;
-import com.alibaba.otter.canal.protocol.ClientIdentity;
 import com.alibaba.otter.canal.protocol.CanalEntry.Entry;
+import com.alibaba.otter.canal.protocol.ClientIdentity;
 import com.alibaba.otter.canal.protocol.position.EntryPosition;
 import com.alibaba.otter.canal.sink.CanalEventSink;
 import com.alibaba.otter.canal.sink.entry.EntryEventSink;
@@ -90,7 +90,7 @@ public class CanalInstanceWithManager extends CanalInstanceSupport implements Ca
         this.filter = filter;
 
         logger.info("init CannalInstance for {}-{} with parameters:{}",
-                    new Object[] { canalId, destination, parameters });
+            new Object[] { canalId, destination, parameters });
         // 初始化报警机制
         initAlarmHandler();
         // 初始化metaManager
@@ -189,6 +189,7 @@ public class CanalInstanceWithManager extends CanalInstanceSupport implements Ca
             } else {
                 ((AbstractEventParser) eventParser).setEventFilter(aviaterFilter);
             }
+
         }
 
         // filter的处理规则
@@ -196,6 +197,16 @@ public class CanalInstanceWithManager extends CanalInstanceSupport implements Ca
         // b. sink处理数据的路由&分发,一份parse数据经过sink后可以分发为多份，每份的数据可以根据自己的过滤规则不同而有不同的数据
         // 后续内存版的一对多分发，可以考虑
         return true;
+    }
+
+    protected void afterStartEventParser(CanalEventParser eventParser) {
+        super.afterStartEventParser(eventParser);
+
+        // 读取一下历史订阅的filter信息
+        List<ClientIdentity> clientIdentitys = metaManager.listAllSubscribeInfo(destination);
+        for (ClientIdentity clientIdentity : clientIdentitys) {
+            subscribeChange(clientIdentity);
+        }
     }
 
     protected void initAlarmHandler() {
@@ -214,7 +225,8 @@ public class CanalInstanceWithManager extends CanalInstanceSupport implements Ca
             ((ZooKeeperMetaManager) metaManager).setZkClientx(getZkclientx());
         } else if (mode.isMixed()) {
             // metaManager = new MixedMetaManager();
-            metaManager = new PeriodMixedMetaManager();// 换用优化过的mixed, at 2012-09-11
+            metaManager = new PeriodMixedMetaManager();// 换用优化过的mixed, at
+                                                       // 2012-09-11
             // 设置内嵌的zk metaManager
             ZooKeeperMetaManager zooKeeperMetaManager = new ZooKeeperMetaManager();
             zooKeeperMetaManager.setZkClientx(getZkclientx());
@@ -234,15 +246,13 @@ public class CanalInstanceWithManager extends CanalInstanceSupport implements Ca
             memoryEventStore.setBufferSize(parameters.getMemoryStorageBufferSize());
             memoryEventStore.setBufferMemUnit(parameters.getMemoryStorageBufferMemUnit());
             memoryEventStore.setBatchMode(BatchMode.valueOf(parameters.getStorageBatchMode().name()));
+            memoryEventStore.setDdlIsolation(parameters.getDdlIsolation());
             eventStore = memoryEventStore;
         } else if (mode.isFile()) {
             // 后续版本支持
             throw new CanalException("unsupport MetaMode for " + mode);
         } else if (mode.isMixed()) {
             // 后续版本支持
-            throw new CanalException("unsupport MetaMode for " + mode);
-        } else if (mode.isMetaq()) {
-            // TODO create metaq store
             throw new CanalException("unsupport MetaMode for " + mode);
         } else {
             throw new CanalException("unsupport MetaMode for " + mode);
@@ -298,7 +308,8 @@ public class CanalInstanceWithManager extends CanalInstanceSupport implements Ca
                 for (List<DataSourcing> groupDbAddress : groupDbAddresses) {
                     if (lastType != null && !lastType.equals(groupDbAddress.get(i).getType())) {
                         throw new CanalException(String.format("master/slave Sourcing type is unmatch. %s vs %s",
-                                                               lastType, groupDbAddress.get(i).getType()));
+                            lastType,
+                            groupDbAddress.get(i).getType()));
                     }
 
                     lastType = groupDbAddress.get(i).getType();
@@ -343,32 +354,34 @@ public class CanalInstanceWithManager extends CanalInstanceSupport implements Ca
             // 数据库信息参数
             mysqlEventParser.setSlaveId(parameters.getSlaveId());
             if (!CollectionUtils.isEmpty(dbAddresses)) {
-                mysqlEventParser.setMasterInfo(new AuthenticationInfo(dbAddresses.get(0), parameters.getDbUsername(),
-                                                                      parameters.getDbPassword(),
-                                                                      parameters.getDefaultDatabaseName()));
+                mysqlEventParser.setMasterInfo(new AuthenticationInfo(dbAddresses.get(0),
+                    parameters.getDbUsername(),
+                    parameters.getDbPassword(),
+                    parameters.getDefaultDatabaseName()));
 
                 if (dbAddresses.size() > 1) {
                     mysqlEventParser.setStandbyInfo(new AuthenticationInfo(dbAddresses.get(1),
-                                                                           parameters.getDbUsername(),
-                                                                           parameters.getDbPassword(),
-                                                                           parameters.getDefaultDatabaseName()));
+                        parameters.getDbUsername(),
+                        parameters.getDbPassword(),
+                        parameters.getDefaultDatabaseName()));
                 }
             }
 
             if (!CollectionUtils.isEmpty(parameters.getPositions())) {
                 EntryPosition masterPosition = JsonUtils.unmarshalFromString(parameters.getPositions().get(0),
-                                                                             EntryPosition.class);
+                    EntryPosition.class);
                 // binlog位置参数
                 mysqlEventParser.setMasterPosition(masterPosition);
 
                 if (parameters.getPositions().size() > 1) {
                     EntryPosition standbyPosition = JsonUtils.unmarshalFromString(parameters.getPositions().get(0),
-                                                                                  EntryPosition.class);
+                        EntryPosition.class);
                     mysqlEventParser.setStandbyPosition(standbyPosition);
                 }
             }
             mysqlEventParser.setFallbackIntervalInSeconds(parameters.getFallbackIntervalInSeconds());
             mysqlEventParser.setProfilingEnabled(false);
+            mysqlEventParser.setFilterTableError(parameters.getFilterTableError());
             eventParser = mysqlEventParser;
         } else if (type.isLocalBinlog()) {
             LocalBinlogEventParser localBinlogEventParser = new LocalBinlogEventParser();
@@ -378,12 +391,15 @@ public class CanalInstanceWithManager extends CanalInstanceSupport implements Ca
             localBinlogEventParser.setConnectionCharsetNumber(parameters.getConnectionCharsetNumber());
             localBinlogEventParser.setDirectory(parameters.getLocalBinlogDirectory());
             localBinlogEventParser.setProfilingEnabled(false);
+            localBinlogEventParser.setDetectingEnable(parameters.getDetectingEnable());
+            localBinlogEventParser.setDetectingIntervalInSeconds(parameters.getDetectingIntervalInSeconds());
+            localBinlogEventParser.setFilterTableError(parameters.getFilterTableError());
             // 数据库信息，反查表结构时需要
             if (!CollectionUtils.isEmpty(dbAddresses)) {
                 localBinlogEventParser.setMasterInfo(new AuthenticationInfo(dbAddresses.get(0),
-                                                                            parameters.getDbUsername(),
-                                                                            parameters.getDbPassword(),
-                                                                            parameters.getDefaultDatabaseName()));
+                    parameters.getDbUsername(),
+                    parameters.getDbPassword(),
+                    parameters.getDefaultDatabaseName()));
 
             }
             eventParser = localBinlogEventParser;
@@ -393,7 +409,8 @@ public class CanalInstanceWithManager extends CanalInstanceSupport implements Ca
             throw new CanalException("unsupport SourcingType for " + type);
         }
 
-        if (eventParser instanceof AbstractEventParser) { // add transaction support at 2012-12-06
+        // add transaction support at 2012-12-06
+        if (eventParser instanceof AbstractEventParser) {
             AbstractEventParser abstractEventParser = (AbstractEventParser) eventParser;
             abstractEventParser.setTransactionSize(parameters.getTransactionSize());
             abstractEventParser.setLogPositionManager(initLogPositionManager());
@@ -403,6 +420,12 @@ public class CanalInstanceWithManager extends CanalInstanceSupport implements Ca
             if (StringUtils.isNotEmpty(filter)) {
                 AviaterRegexFilter aviaterFilter = new AviaterRegexFilter(filter);
                 abstractEventParser.setEventFilter(aviaterFilter);
+            }
+
+            // 设置黑名单
+            if (StringUtils.isNotEmpty(parameters.getBlackFilter())) {
+                AviaterRegexFilter aviaterFilter = new AviaterRegexFilter(parameters.getBlackFilter());
+                abstractEventParser.setEventBlackFilter(aviaterFilter);
             }
         }
         if (eventParser instanceof MysqlEventParser) {
@@ -423,10 +446,6 @@ public class CanalInstanceWithManager extends CanalInstanceSupport implements Ca
             haController = new HeartBeatHAController();
             ((HeartBeatHAController) haController).setDetectingRetryTimes(parameters.getDetectingRetryTimes());
             ((HeartBeatHAController) haController).setSwitchEnable(parameters.getHeartbeatHaEnable());
-        } else if (haMode.isTddl()) {
-            throw new CanalException("unsupport HAMode for " + haMode);
-        } else if (haMode.isCobar()) {
-            throw new CanalException("unsupport HAMode for " + haMode);
         } else {
             throw new CanalException("unsupport HAMode for " + haMode);
         }
@@ -465,10 +484,19 @@ public class CanalInstanceWithManager extends CanalInstanceSupport implements Ca
             throw new CanalException("unsupport indexMode for " + indexMode);
         }
 
-        logger.info("init logPositionManager end! \n\t load CanalLogPositionManager:{}",
-                    logPositionManager.getClass().getName());
+        logger.info("init logPositionManager end! \n\t load CanalLogPositionManager:{}", logPositionManager.getClass()
+            .getName());
 
         return logPositionManager;
+    }
+
+    protected void startEventParserInternal(CanalEventParser eventParser, boolean isGroup) {
+        if (eventParser instanceof AbstractEventParser) {
+            AbstractEventParser abstractEventParser = (AbstractEventParser) eventParser;
+            abstractEventParser.setAlarmHandler(getAlarmHandler());
+        }
+
+        super.startEventParserInternal(eventParser, isGroup);
     }
 
     private int getGroupSize() {

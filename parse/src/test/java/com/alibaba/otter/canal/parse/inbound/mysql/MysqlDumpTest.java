@@ -26,12 +26,12 @@ public class MysqlDumpTest {
     @Test
     public void testSimple() {
         final MysqlEventParser controller = new MysqlEventParser();
-        final EntryPosition startPosition = new EntryPosition("mysql-bin.000002", 38266L);
+        final EntryPosition startPosition = new EntryPosition("mysql-bin.000003", 4L);
 
         controller.setConnectionCharset(Charset.forName("UTF-8"));
         controller.setSlaveId(3344L);
         controller.setDetectingEnable(false);
-        controller.setMasterInfo(new AuthenticationInfo(new InetSocketAddress("10.20.153.51", 3306), "retl", "retl"));
+        controller.setMasterInfo(new AuthenticationInfo(new InetSocketAddress("127.0.0.1", 3306), "xxxxx", "xxxxx"));
         controller.setMasterPosition(startPosition);
         controller.setEventSink(new AbstractCanalEventSinkTest<List<Entry>>() {
 
@@ -41,7 +41,8 @@ public class MysqlDumpTest {
 
                 for (Entry entry : entrys) {
                     if (entry.getEntryType() == EntryType.TRANSACTIONBEGIN
-                        || entry.getEntryType() == EntryType.TRANSACTIONEND) {
+                        || entry.getEntryType() == EntryType.TRANSACTIONEND
+                        || entry.getEntryType() == EntryType.HEARTBEAT) {
                         continue;
                     }
 
@@ -55,10 +56,15 @@ public class MysqlDumpTest {
 
                     EventType eventType = rowChage.getEventType();
                     System.out.println(String.format("================> binlog[%s:%s] , name[%s,%s] , eventType : %s",
-                                                     entry.getHeader().getLogfileName(),
-                                                     entry.getHeader().getLogfileOffset(),
-                                                     entry.getHeader().getSchemaName(),
-                                                     entry.getHeader().getTableName(), eventType));
+                        entry.getHeader().getLogfileName(),
+                        entry.getHeader().getLogfileOffset(),
+                        entry.getHeader().getSchemaName(),
+                        entry.getHeader().getTableName(),
+                        eventType));
+
+                    if (eventType == EventType.QUERY || rowChage.getIsDdl()) {
+                        System.out.println(" sql ----> " + rowChage.getSql());
+                    }
 
                     for (RowData rowData : rowChage.getRowDatasList()) {
                         if (eventType == EventType.DELETE) {

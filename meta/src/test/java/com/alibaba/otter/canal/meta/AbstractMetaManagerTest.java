@@ -17,7 +17,7 @@ import com.alibaba.otter.canal.protocol.position.PositionRange;
 
 public class AbstractMetaManagerTest extends AbstractZkTest {
 
-    private static final String MYSQL_ADDRESS  = "10.20.153.51";
+    private static final String MYSQL_ADDRESS  = "127.0.0.1";
     protected ClientIdentity    clientIdentity = new ClientIdentity(destination, (short) 1); ;
 
     public void doSubscribeTest(CanalMetaManager metaManager) {
@@ -40,6 +40,8 @@ public class AbstractMetaManagerTest extends AbstractZkTest {
     }
 
     public void doBatchTest(CanalMetaManager metaManager) {
+        metaManager.subscribe(clientIdentity);
+
         PositionRange first = metaManager.getFirstBatch(clientIdentity);
         PositionRange lastest = metaManager.getLastestBatch(clientIdentity);
 
@@ -84,6 +86,8 @@ public class AbstractMetaManagerTest extends AbstractZkTest {
     }
 
     public Position doCursorTest(CanalMetaManager metaManager) {
+        metaManager.subscribe(clientIdentity);
+
         Position position1 = metaManager.getCursor(clientIdentity);
         Assert.assertNull(position1);
 

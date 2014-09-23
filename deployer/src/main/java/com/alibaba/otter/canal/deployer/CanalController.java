@@ -85,10 +85,17 @@ public class CanalController {
         // 准备canal server
         cid = Long.valueOf(getProperty(properties, CanalConstants.CANAL_ID));
         ip = getProperty(properties, CanalConstants.CANAL_IP);
+        port = Integer.valueOf(getProperty(properties, CanalConstants.CANAL_PORT));
+        embededCanalServer = new CanalServerWithEmbeded();
+        embededCanalServer.setCanalInstanceGenerator(instanceGenerator);// 设置自定义的instanceGenerator
+        canalServer = new CanalServerWithNetty(embededCanalServer);
+        canalServer.setIp(ip);
+        canalServer.setPort(port);
+
+        // 处理下ip为空，默认使用hostIp暴露到zk中
         if (StringUtils.isEmpty(ip)) {
             ip = AddressUtils.getHostIp();
         }
-        port = Integer.valueOf(getProperty(properties, CanalConstants.CANAL_PORT));
         final String zkServers = getProperty(properties, CanalConstants.CANAL_ZKSERVERS);
         if (StringUtils.isNotEmpty(zkServers)) {
             zkclientx = ZkClientx.getZkClient(zkServers);
@@ -110,6 +117,22 @@ public class CanalController {
                         try {
                             MDC.put(CanalConstants.MDC_DESTINATION, String.valueOf(destination));
                             embededCanalServer.start(destination);
+                        } finally {
+                            MDC.remove(CanalConstants.MDC_DESTINATION);
+                        }
+                    }
+
+                    public void processActiveExit() {
+                        try {
+                            MDC.put(CanalConstants.MDC_DESTINATION, String.valueOf(destination));
+                            embededCanalServer.stop(destination);
+                        } finally {
+                            MDC.remove(CanalConstants.MDC_DESTINATION);
+                        }
+                    }
+
+                    public void processStart() {
+                        try {
                             if (zkclientx != null) {
                                 final String path = ZookeeperPathUtils.getDestinationClusterNode(destination, ip + ":"
                                                                                                               + port);
@@ -130,7 +153,7 @@ public class CanalController {
                         }
                     }
 
-                    public void processActiveExit() {
+                    public void processStop() {
                         try {
                             MDC.put(CanalConstants.MDC_DESTINATION, String.valueOf(destination));
                             if (zkclientx != null) {
@@ -138,7 +161,6 @@ public class CanalController {
                                                                                                               + port);
                                 releaseCid(path);
                             }
-                            embededCanalServer.stop(destination);
                         } finally {
                             MDC.remove(CanalConstants.MDC_DESTINATION);
                         }
@@ -151,12 +173,6 @@ public class CanalController {
                 return runningMonitor;
             }
         }));
-
-        embededCanalServer = new CanalServerWithEmbeded();
-        embededCanalServer.setCanalInstanceGenerator(instanceGenerator);// 设置自定义的instanceGenerator
-        canalServer = new CanalServerWithNetty(embededCanalServer);
-        canalServer.setIp(ip);
-        canalServer.setPort(port);
 
         // 初始化monitor机制
         autoScan = BooleanUtils.toBoolean(getProperty(properties, CanalConstants.CANAL_AUTO_SCAN));
@@ -237,7 +253,7 @@ public class CanalController {
         }
 
         String managerAddress = getProperty(properties,
-                                            CanalConstants.getInstanceManagerAddressKey(CanalConstants.GLOBAL_NAME));
+            CanalConstants.getInstanceManagerAddressKey(CanalConstants.GLOBAL_NAME));
         if (StringUtils.isNotEmpty(managerAddress)) {
             globalConfig.setManagerAddress(managerAddress);
         }
@@ -354,8 +370,8 @@ public class CanalController {
                 }
             });
         }
-        // 启动网络接口
-        canalServer.start();
+        // 优先启动embeded服务
+        embededCanalServer.start();
         // 尝试启动一下非lazy状态的通道
         for (Map.Entry<String, InstanceConfig> entry : instanceConfigs.entrySet()) {
             final String destination = entry.getKey();
@@ -382,6 +398,9 @@ public class CanalController {
                 }
             }
         }
+
+        // 启动网络接口
+        canalServer.start();
     }
 
     public void stop() throws Throwable {

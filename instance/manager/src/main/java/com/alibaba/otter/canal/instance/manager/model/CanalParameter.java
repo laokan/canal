@@ -9,7 +9,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.ToStringBuilder;
 
 import com.alibaba.otter.canal.common.utils.CanalToStringStyle;
-import com.alibaba.otter.canal.store.model.BatchMode;
 
 /**
  * canal运行相关参数
@@ -24,6 +23,9 @@ public class CanalParameter implements Serializable {
 
     // 相关参数
     private RunMode                  runMode                            = RunMode.EMBEDDED;          // 运行模式：嵌入式/服务式
+    private ClusterMode              clusterMode                        = ClusterMode.STANDALONE;    // 集群模式：单机/冷备/热备份
+
+    private Long                     zkClusterId;                                                    // zk集群id，为管理方便
     private List<String>             zkClusters;                                                     // zk集群地址
 
     // meta相关参数
@@ -79,8 +81,15 @@ public class CanalParameter implements Serializable {
     // tddl/diamond 配置信息
     private String                   app;
     private String                   group;
+    // media配置信息
+    private String                   mediaGroup;
     // metaq 存储配置信息
     private String                   metaqStoreUri;
+
+    // ddl同步支持，隔离dml/ddl
+    private Boolean                  ddlIsolation                       = Boolean.FALSE;             // 是否将ddl单条返回
+    private Boolean                  filterTableError                   = Boolean.FALSE;             // 是否忽略表解析异常
+    private String                   blackFilter                        = null;                      // 匹配黑名单,忽略解析
 
     // ================================== 兼容字段处理
     private InetSocketAddress        masterAddress;                                                  // 主库信息
@@ -113,25 +122,43 @@ public class CanalParameter implements Serializable {
         }
     }
 
+    public static enum ClusterMode {
+
+        /** 嵌入式 */
+        STANDALONE,
+        /** 冷备 */
+        STANDBY,
+        /** 热备 */
+        ACTIVE;
+
+        public boolean isStandalone() {
+            return this.equals(ClusterMode.STANDALONE);
+        }
+
+        public boolean isStandby() {
+            return this.equals(ClusterMode.STANDBY);
+        }
+
+        public boolean isActive() {
+            return this.equals(ClusterMode.ACTIVE);
+        }
+    }
+
     public static enum HAMode {
-        /** cobar ha控制 */
-        COBAR,
-        /** tddl ha控制 */
-        TDDL,
+
         /** 心跳检测 */
-        HEARTBEAT;
-
-        public boolean isCobar() {
-            return this.equals(HAMode.COBAR);
-        }
-
-        public boolean isTddl() {
-            return this.equals(HAMode.TDDL);
-        }
+        HEARTBEAT,
+        /** otter media */
+        MEDIA;
 
         public boolean isHeartBeat() {
             return this.equals(HAMode.HEARTBEAT);
         }
+
+        public boolean isMedia() {
+            return this.equals(HAMode.MEDIA);
+        }
+
     }
 
     public static enum StorageMode {
@@ -140,9 +167,7 @@ public class CanalParameter implements Serializable {
         /** 文件存储模式 */
         FILE,
         /** 混合模式，内存+文件 */
-        MIXED,
-        /** metaq模式 */
-        METAQ;
+        MIXED;
 
         public boolean isMemory() {
             return this.equals(StorageMode.MEMORY);
@@ -156,9 +181,6 @@ public class CanalParameter implements Serializable {
             return this.equals(StorageMode.MIXED);
         }
 
-        public boolean isMetaq() {
-            return this.equals(StorageMode.METAQ);
-        }
     }
 
     public static enum StorageScavengeMode {
@@ -269,6 +291,22 @@ public class CanalParameter implements Serializable {
         }
     }
 
+    public static enum BatchMode {
+        /** 对象数量 */
+        ITEMSIZE,
+
+        /** 内存大小 */
+        MEMSIZE;
+
+        public boolean isItemSize() {
+            return this == BatchMode.ITEMSIZE;
+        }
+
+        public boolean isMemSize() {
+            return this == BatchMode.MEMSIZE;
+        }
+    }
+
     /**
      * 数据来源描述
      * 
@@ -322,6 +360,14 @@ public class CanalParameter implements Serializable {
 
     public void setRunMode(RunMode runMode) {
         this.runMode = runMode;
+    }
+
+    public ClusterMode getClusterMode() {
+        return clusterMode;
+    }
+
+    public void setClusterMode(ClusterMode clusterMode) {
+        this.clusterMode = clusterMode;
     }
 
     public List<String> getZkClusters() {
@@ -750,7 +796,7 @@ public class CanalParameter implements Serializable {
     }
 
     public Boolean getHeartbeatHaEnable() {
-        return heartbeatHaEnable == null ? false : true;
+        return heartbeatHaEnable == null ? false : heartbeatHaEnable;
     }
 
     public void setHeartbeatHaEnable(Boolean heartbeatHaEnable) {
@@ -771,6 +817,46 @@ public class CanalParameter implements Serializable {
 
     public void setMemoryStorageBufferMemUnit(Integer memoryStorageBufferMemUnit) {
         this.memoryStorageBufferMemUnit = memoryStorageBufferMemUnit;
+    }
+
+    public String getMediaGroup() {
+        return mediaGroup;
+    }
+
+    public void setMediaGroup(String mediaGroup) {
+        this.mediaGroup = mediaGroup;
+    }
+
+    public Long getZkClusterId() {
+        return zkClusterId;
+    }
+
+    public void setZkClusterId(Long zkClusterId) {
+        this.zkClusterId = zkClusterId;
+    }
+
+    public Boolean getDdlIsolation() {
+        return ddlIsolation == null ? false : ddlIsolation;
+    }
+
+    public void setDdlIsolation(Boolean ddlIsolation) {
+        this.ddlIsolation = ddlIsolation;
+    }
+
+    public Boolean getFilterTableError() {
+        return filterTableError == null ? false : filterTableError;
+    }
+
+    public void setFilterTableError(Boolean filterTableError) {
+        this.filterTableError = filterTableError;
+    }
+
+    public String getBlackFilter() {
+        return blackFilter;
+    }
+
+    public void setBlackFilter(String blackFilter) {
+        this.blackFilter = blackFilter;
     }
 
     public String toString() {

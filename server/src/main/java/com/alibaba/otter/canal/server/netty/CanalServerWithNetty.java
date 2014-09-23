@@ -59,7 +59,9 @@ public class CanalServerWithNetty extends AbstractCanalLifeCycle implements Cana
                 pipelines.addLast(HandshakeInitializationHandler.class.getName(), new HandshakeInitializationHandler());
                 pipelines.addLast(ClientAuthenticationHandler.class.getName(),
                                   new ClientAuthenticationHandler(embededServer));
-                pipelines.addLast(SessionHandler.class.getName(), new SessionHandler(embededServer));
+
+                SessionHandler sessionHandler = new SessionHandler(embededServer);
+                pipelines.addLast(SessionHandler.class.getName(), sessionHandler);
                 return pipelines;
             }
         });

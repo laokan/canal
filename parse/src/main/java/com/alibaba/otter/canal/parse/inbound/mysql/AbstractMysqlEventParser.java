@@ -19,6 +19,10 @@ public abstract class AbstractMysqlEventParser extends AbstractEventParser {
     // 编码信息
     protected byte              connectionCharsetNumber = (byte) 33;
     protected Charset           connectionCharset       = Charset.forName("UTF-8");
+    protected boolean           filterQueryDcl          = false;
+    protected boolean           filterQueryDml          = false;
+    protected boolean           filterQueryDdl          = false;
+    protected boolean           filterTableError        = false;
 
     protected BinlogParser buildParser() {
         LogEventConvert convert = new LogEventConvert();
@@ -26,7 +30,15 @@ public abstract class AbstractMysqlEventParser extends AbstractEventParser {
             convert.setNameFilter((AviaterRegexFilter) eventFilter);
         }
 
+        if (eventBlackFilter != null && eventBlackFilter instanceof AviaterRegexFilter) {
+            convert.setNameBlackFilter((AviaterRegexFilter) eventBlackFilter);
+        }
+
         convert.setCharset(connectionCharset);
+        convert.setFilterQueryDcl(filterQueryDcl);
+        convert.setFilterQueryDml(filterQueryDml);
+        convert.setFilterQueryDdl(filterQueryDdl);
+        convert.setFilterTableError(filterTableError);
         return convert;
     }
 
@@ -36,6 +48,16 @@ public abstract class AbstractMysqlEventParser extends AbstractEventParser {
         // 触发一下filter变更
         if (eventFilter != null && eventFilter instanceof AviaterRegexFilter && binlogParser instanceof LogEventConvert) {
             ((LogEventConvert) binlogParser).setNameFilter((AviaterRegexFilter) eventFilter);
+        }
+    }
+
+    public void setEventBlackFilter(CanalEventFilter eventBlackFilter) {
+        super.setEventBlackFilter(eventBlackFilter);
+
+        // 触发一下filter变更
+        if (eventBlackFilter != null && eventBlackFilter instanceof AviaterRegexFilter
+            && binlogParser instanceof LogEventConvert) {
+            ((LogEventConvert) binlogParser).setNameBlackFilter((AviaterRegexFilter) eventBlackFilter);
         }
     }
 
@@ -51,6 +73,22 @@ public abstract class AbstractMysqlEventParser extends AbstractEventParser {
 
     public void setConnectionCharset(String connectionCharset) {
         this.connectionCharset = Charset.forName(connectionCharset);
+    }
+
+    public void setFilterQueryDcl(boolean filterQueryDcl) {
+        this.filterQueryDcl = filterQueryDcl;
+    }
+
+    public void setFilterQueryDml(boolean filterQueryDml) {
+        this.filterQueryDml = filterQueryDml;
+    }
+
+    public void setFilterQueryDdl(boolean filterQueryDdl) {
+        this.filterQueryDdl = filterQueryDdl;
+    }
+
+    public void setFilterTableError(boolean filterTableError) {
+        this.filterTableError = filterTableError;
     }
 
 }

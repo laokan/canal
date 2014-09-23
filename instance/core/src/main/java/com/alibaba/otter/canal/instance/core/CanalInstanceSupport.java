@@ -24,10 +24,10 @@ public abstract class CanalInstanceSupport extends AbstractCanalLifeCycle {
             // 处理group的模式
             List<CanalEventParser> eventParsers = ((GroupEventParser) eventParser).getEventParsers();
             for (CanalEventParser singleEventParser : eventParsers) {// 需要遍历启动
-                startEventParserInternal(singleEventParser);
+                startEventParserInternal(singleEventParser, true);
             }
         } else {
-            startEventParserInternal(eventParser);
+            startEventParserInternal(eventParser, false);
         }
     }
 
@@ -58,7 +58,7 @@ public abstract class CanalInstanceSupport extends AbstractCanalLifeCycle {
     /**
      * 初始化单个eventParser，不需要考虑group
      */
-    protected void startEventParserInternal(CanalEventParser eventParser) {
+    protected void startEventParserInternal(CanalEventParser eventParser, boolean isGroup) {
         if (eventParser instanceof AbstractEventParser) {
             AbstractEventParser abstractEventParser = (AbstractEventParser) eventParser;
             // 首先启动log position管理器

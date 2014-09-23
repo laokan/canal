@@ -426,7 +426,7 @@ public final class TableMapLogEvent extends LogEvent
             columnInfo[i] = info;
         }
 
-        if (buffer.position() < header.eventLen)
+        if (buffer.position() < buffer.limit())
         {
             final int fieldSize = (int) buffer.getPackedLong();
             decodeFields(buffer, fieldSize);
@@ -501,7 +501,15 @@ public final class TableMapLogEvent extends LogEvent
                     info.meta = x;
                     break;
                 }
+            case MYSQL_TYPE_TIME2:
+            case MYSQL_TYPE_DATETIME2:
+            case MYSQL_TYPE_TIMESTAMP2:
+                {
+                    info.meta = buffer.getUint8();
+                    break;
+                }
             default:
+                info.meta = 0;
                 break;
             }
         }

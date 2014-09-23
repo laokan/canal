@@ -1,7 +1,6 @@
 package com.alibaba.otter.canal.parse.inbound.mysql;
 
 import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertFalse;
 import static junit.framework.Assert.assertTrue;
 
 import java.io.File;
@@ -9,7 +8,6 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Before;
@@ -26,9 +24,9 @@ import com.alibaba.otter.canal.sink.exception.CanalSinkException;
 
 public class LocalBinlogEventParserTest {
 
-    private static final String MYSQL_ADDRESS = "10.20.153.51";
-    private static final String USERNAME      = "retl";
-    private static final String PASSWORD      = "retl";
+    private static final String MYSQL_ADDRESS = "127.0.0.1";
+    private static final String USERNAME      = "xxxxx";
+    private static final String PASSWORD      = "xxxxx";
     private String              directory;
 
     @Before
@@ -36,7 +34,6 @@ public class LocalBinlogEventParserTest {
         URL url = Thread.currentThread().getContextClassLoader().getResource("dummy.txt");
         File dummyFile = new File(url.getFile());
         directory = new File(dummyFile.getParent() + "/binlog").getPath();
-        // directory = "/home/jianghang/work/otter-1.0.0/canal/parse/src/test/resources/binlog";
     }
 
     @Test
@@ -169,10 +166,12 @@ public class LocalBinlogEventParserTest {
     @Test
     public void test_no_position() throws InterruptedException {
         final TimeoutChecker timeoutChecker = new TimeoutChecker(3 * 1000);
-        final AtomicBoolean sinkExecuted = new AtomicBoolean(false);
+        final EntryPosition defaultPosition = buildPosition("mysql-bin.000002",
+            null,
+            new Date().getTime() + 1000 * 1000L);
+        final AtomicLong entryCount = new AtomicLong(0);
+        final EntryPosition entryPosition = new EntryPosition();
 
-        final EntryPosition defaultPosition = buildPosition("mysql-bin.000001", null,
-                                                            new Date().getTime() + 1000 * 1000L);
         final LocalBinlogEventParser controller = new LocalBinlogEventParser();
         controller.setMasterPosition(defaultPosition);
         controller.setMasterInfo(buildAuthentication());
@@ -181,7 +180,21 @@ public class LocalBinlogEventParserTest {
 
             public boolean sink(List<Entry> entrys, InetSocketAddress remoteAddress, String destination)
                                                                                                         throws CanalSinkException {
-                sinkExecuted.set(true);
+                for (Entry entry : entrys) {
+                    entryCount.incrementAndGet();
+
+                    String logfilename = entry.getHeader().getLogfileName();
+                    long logfileoffset = entry.getHeader().getLogfileOffset();
+                    long executeTime = entry.getHeader().getExecuteTime();
+
+                    entryPosition.setJournalName(logfilename);
+                    entryPosition.setPosition(logfileoffset);
+                    entryPosition.setTimestamp(executeTime);
+                    break;
+                }
+
+                controller.stop();
+                timeoutChecker.stop();
                 timeoutChecker.touch();
                 return true;
             }
@@ -208,7 +221,11 @@ public class LocalBinlogEventParserTest {
         }
 
         // check
-        assertFalse("can't not execute this code", sinkExecuted.get());
+        assertTrue(entryCount.get() > 0);
+
+        // 对比第一条数据和起始的position相同
+        // assertEquals(entryPosition.getJournalName(), "mysql-bin.000002");
+        assertTrue(entryPosition.getTimestamp() <= defaultPosition.getTimestamp());
     }
 
     private EntryPosition buildPosition(String binlogFile, Long offest, Long timestamp) {

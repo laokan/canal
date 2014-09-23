@@ -33,7 +33,7 @@ public class CanalServerWithEmbeded_StandbyTest extends BaseCanalServerWithEmbed
 
         CanalParameter parameter = new CanalParameter();
 
-        parameter.setZkClusters(Arrays.asList("10.20.153.52:2188"));
+        parameter.setZkClusters(Arrays.asList("127.0.0.1:2188"));
         parameter.setMetaMode(MetaMode.MIXED); // 冷备，可选择混合模式
         parameter.setHaMode(HAMode.HEARTBEAT);
         parameter.setIndexMode(IndexMode.META);// 内存版store，需要选择meta做为index
@@ -43,12 +43,11 @@ public class CanalServerWithEmbeded_StandbyTest extends BaseCanalServerWithEmbed
 
         parameter.setSourcingType(SourcingType.MYSQL);
         parameter.setDbAddresses(Arrays.asList(new InetSocketAddress(MYSQL_ADDRESS, 3306),
-                                               new InetSocketAddress(MYSQL_ADDRESS, 3306)));
+            new InetSocketAddress(MYSQL_ADDRESS, 3306)));
         parameter.setDbUsername(USERNAME);
         parameter.setDbPassword(PASSWORD);
-        parameter.setPositions(Arrays.asList(
-                                             "{\"journalName\":\"mysql-bin.000001\",\"position\":6163L,\"timestamp\":1322803601000L}",
-                                             "{\"journalName\":\"mysql-bin.000001\",\"position\":6163L,\"timestamp\":1322803601000L}"));
+        parameter.setPositions(Arrays.asList("{\"journalName\":\"mysql-bin.000001\",\"position\":6163L,\"timestamp\":1322803601000L}",
+            "{\"journalName\":\"mysql-bin.000001\",\"position\":6163L,\"timestamp\":1322803601000L}"));
 
         parameter.setSlaveId(1234L);
 

@@ -150,18 +150,124 @@ public abstract class LogEvent
     /**
      * These event numbers are used from 5.1.16 and forward
      */
-    public static final int    WRITE_ROWS_EVENT         = 23;
-    public static final int    UPDATE_ROWS_EVENT        = 24;
-    public static final int    DELETE_ROWS_EVENT        = 25;
+    public static final int    WRITE_ROWS_EVENT_V1      = 23;
+    public static final int    UPDATE_ROWS_EVENT_V1     = 24;
+    public static final int    DELETE_ROWS_EVENT_V1     = 25;
 
     /**
      * Something out of the ordinary happened on the master
      */
     public static final int    INCIDENT_EVENT           = 26;
 
-    /** end marker */
-    public static final int    ENUM_END_EVENT           = 27;
+    /**
+     * Heartbeat event to be send by master at its idle time to ensure master's online status to slave
+     */
+    public static final int    HEARTBEAT_LOG_EVENT      = 27;
 
+    /**
+     * In some situations, it is necessary to send over ignorable data to the slave: data that a slave can handle in
+     * case there is code for handling it, but which can be ignored if it is not recognized.
+     */
+    public static final int    IGNORABLE_LOG_EVENT      = 28;
+    public static final int    ROWS_QUERY_LOG_EVENT     = 29;
+
+    /** Version 2 of the Row events */
+    public static final int    WRITE_ROWS_EVENT         = 30;
+    public static final int    UPDATE_ROWS_EVENT        = 31;
+    public static final int    DELETE_ROWS_EVENT        = 32;
+
+    public static final int    GTID_LOG_EVENT           = 33;
+    public static final int    ANONYMOUS_GTID_LOG_EVENT = 34;
+
+    public static final int    PREVIOUS_GTIDS_LOG_EVENT = 35;
+    
+    // mariaDb 5.5.34
+    /* New MySQL/Sun events are to be added right above this comment */
+    public static final int    MYSQL_EVENTS_END         = 36;
+
+    public static final int    MARIA_EVENTS_BEGIN       = 160;
+    /* New Maria event numbers start from here */
+    public static final int    ANNOTATE_ROWS_EVENT      = 160;
+    /*
+    Binlog checkpoint event. Used for XA crash recovery on the master, not used
+    in replication.
+    A binlog checkpoint event specifies a binlog file such that XA crash
+    recovery can start from that file - and it is guaranteed to find all XIDs
+    that are prepared in storage engines but not yet committed.
+     */
+    public static final int     BINLOG_CHECKPOINT_EVENT = 161;
+    /*
+    Gtid event. For global transaction ID, used to start a new event group,
+    instead of the old BEGIN query event, and also to mark stand-alone
+    events.
+     */
+    public static final int    GTID_EVENT               = 162;
+    /*
+    Gtid list event. Logged at the start of every binlog, to record the
+    current replication state. This consists of the last GTID seen for
+    each replication domain.
+     */
+    public static final int    GTID_LIST_EVENT          = 163;
+
+    /** end marker */
+    public static final int    ENUM_END_EVENT           = 164;
+
+    /**
+    1 byte length, 1 byte format
+    Length is total length in bytes, including 2 byte header
+    Length values 0 and 1 are currently invalid and reserved.
+    */
+    public static final int    EXTRA_ROW_INFO_LEN_OFFSET    = 0;
+    public static final int    EXTRA_ROW_INFO_FORMAT_OFFSET = 1;
+    public static final int    EXTRA_ROW_INFO_HDR_BYTES     = 2;
+    public static final int    EXTRA_ROW_INFO_MAX_PAYLOAD   = (255 - EXTRA_ROW_INFO_HDR_BYTES);
+    
+    // Events are without checksum though its generator
+    public static final int    BINLOG_CHECKSUM_ALG_OFF      = 0;
+    // is checksum-capable New Master (NM).
+    // CRC32 of zlib algorithm.
+    public static final int    BINLOG_CHECKSUM_ALG_CRC32    = 1;
+    // the cut line: valid alg range is [1, 0x7f].
+    public static final int    BINLOG_CHECKSUM_ALG_ENUM_END = 2;
+    // special value to tag undetermined yet checksum
+    public static final int    BINLOG_CHECKSUM_ALG_UNDEF    = 255;
+    // or events from checksum-unaware servers
+
+    public static final int    CHECKSUM_CRC32_SIGNATURE_LEN = 4;
+    public static final int    BINLOG_CHECKSUM_ALG_DESC_LEN = 1;
+    /**
+     * defined statically while there is just one alg implemented
+     */
+    public static final int    BINLOG_CHECKSUM_LEN          = CHECKSUM_CRC32_SIGNATURE_LEN;
+    
+    /* MySQL or old MariaDB slave with no announced capability. */
+    public static final int    MARIA_SLAVE_CAPABILITY_UNKNOWN           = 0;
+
+    /* MariaDB >= 5.3, which understands ANNOTATE_ROWS_EVENT. */
+    public static final int    MARIA_SLAVE_CAPABILITY_ANNOTATE          = 1;
+    /*
+     * MariaDB >= 5.5. This version has the capability to tolerate events
+     * omitted from the binlog stream without breaking replication (MySQL slaves
+     * fail because they mis-compute the offsets into the master's binlog).
+     */
+    public static final int    MARIA_SLAVE_CAPABILITY_TOLERATE_HOLES    = 2;
+    /* MariaDB >= 10.0, which knows about binlog_checkpoint_log_event. */
+    public static final int    MARIA_SLAVE_CAPABILITY_BINLOG_CHECKPOINT = 3;
+    /* MariaDB >= 10.0.1, which knows about global transaction id events. */
+    public static final int    MARIA_SLAVE_CAPABILITY_GTID              = 4;
+
+    /* Our capability. */
+    public static final int    MARIA_SLAVE_CAPABILITY_MINE              = MARIA_SLAVE_CAPABILITY_GTID;
+    
+    /**
+        For an event, 'e', carrying a type code, that a slave,
+        's', does not recognize, 's' will check 'e' for
+        LOG_EVENT_IGNORABLE_F, and if the flag is set, then 'e'
+        is ignored. Otherwise, 's' acknowledges that it has
+        found an unknown event in the relay log.
+     */
+    public static final int   LOG_EVENT_IGNORABLE_F    = 0x80;
+    
     /** enum_field_types */
     public static final int    MYSQL_TYPE_DECIMAL       = 0;
     public static final int    MYSQL_TYPE_TINY          = 1;
@@ -180,6 +286,9 @@ public abstract class LogEvent
     public static final int    MYSQL_TYPE_NEWDATE       = 14;
     public static final int    MYSQL_TYPE_VARCHAR       = 15;
     public static final int    MYSQL_TYPE_BIT           = 16;
+    public static final int    MYSQL_TYPE_TIMESTAMP2    = 17;
+    public static final int    MYSQL_TYPE_DATETIME2     = 18;
+    public static final int    MYSQL_TYPE_TIME2         = 19;
     public static final int    MYSQL_TYPE_NEWDECIMAL    = 246;
     public static final int    MYSQL_TYPE_ENUM          = 247;
     public static final int    MYSQL_TYPE_SET           = 248;
@@ -235,18 +344,36 @@ public abstract class LogEvent
             return "Update_rows_event_old";
         case PRE_GA_DELETE_ROWS_EVENT:
             return "Delete_rows_event_old";
-        case WRITE_ROWS_EVENT:
-            return "Write_rows";
-        case UPDATE_ROWS_EVENT:
-            return "Update_rows";
-        case DELETE_ROWS_EVENT:
-            return "Delete_rows";
+        case WRITE_ROWS_EVENT_V1:
+            return "Write_rows_v1";
+        case UPDATE_ROWS_EVENT_V1:
+            return "Update_rows_v1";
+        case DELETE_ROWS_EVENT_V1:
+            return "Delete_rows_v1";
         case BEGIN_LOAD_QUERY_EVENT:
             return "Begin_load_query";
         case EXECUTE_LOAD_QUERY_EVENT:
             return "Execute_load_query";
         case INCIDENT_EVENT:
             return "Incident";
+        case HEARTBEAT_LOG_EVENT:
+            return "Heartbeat";
+        case IGNORABLE_LOG_EVENT:
+            return "Ignorable";
+        case ROWS_QUERY_LOG_EVENT:
+            return "Rows_query";
+        case WRITE_ROWS_EVENT:
+            return "Write_rows";
+        case UPDATE_ROWS_EVENT:
+            return "Update_rows";
+        case DELETE_ROWS_EVENT:
+            return "Delete_rows";
+        case GTID_LOG_EVENT:
+            return "Gtid";
+        case ANONYMOUS_GTID_LOG_EVENT:
+            return "Anonymous_Gtid";
+        case PREVIOUS_GTIDS_LOG_EVENT:
+            return "Previous_gtids";
         default:
             return "Unknown"; /* impossible */
         }
@@ -305,4 +432,6 @@ public abstract class LogEvent
     {
         return header.getWhen();
     }
+    
+    
 }

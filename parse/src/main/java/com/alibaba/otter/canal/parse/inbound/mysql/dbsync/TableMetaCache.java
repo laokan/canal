@@ -45,14 +45,12 @@ public class TableMetaCache {
                     return getTableMeta0(name);
                 } catch (IOException e) {
                     // 尝试做一次retry操作
-                    if (!connection.isConnected()) {
-                        try {
-                            connection.connect();
-                            return getTableMeta0(name);
-                        } catch (IOException e1) {
-                        }
+                    try {
+                        connection.reconnect();
+                        return getTableMeta0(name);
+                    } catch (IOException e1) {
+                        throw new CanalParseException("fetch failed by table meta:" + name, e1);
                     }
-                    throw new CanalParseException("fetch failed by table meta:" + name, e);
                 }
             }
 
@@ -60,16 +58,25 @@ public class TableMetaCache {
 
     }
 
-    public TableMeta getTableMeta(String fullname) {
-        return tableMetaCache.get(fullname);
+    public TableMeta getTableMeta(String schema, String table) {
+        return getTableMeta(schema, table, true);
     }
 
-    public void clearTableMetaWithFullName(String fullname) {
-        tableMetaCache.remove(fullname);
+    public TableMeta getTableMeta(String schema, String table, boolean useCache) {
+        if (!useCache) {
+            tableMetaCache.remove(getFullName(schema, table));
+        }
+
+        return tableMetaCache.get(getFullName(schema, table));
+    }
+
+    public void clearTableMeta(String schema, String table) {
+        tableMetaCache.remove(getFullName(schema, table));
     }
 
     public void clearTableMetaWithSchemaName(String schema) {
-        // Set<String> removeNames = new HashSet<String>(); // 存一份临时变量，避免在遍历的时候进行删除
+        // Set<String> removeNames = new HashSet<String>(); //
+        // 存一份临时变量，避免在遍历的时候进行删除
         for (String name : tableMetaCache.keySet()) {
             if (StringUtils.startsWithIgnoreCase(name, schema + ".")) {
                 // removeNames.add(name);
@@ -118,4 +125,15 @@ public class TableMetaCache {
         return result;
     }
 
+    private String getFullName(String schema, String table) {
+        StringBuilder builder = new StringBuilder();
+        return builder.append('`')
+            .append(schema)
+            .append('`')
+            .append('.')
+            .append('`')
+            .append(table)
+            .append('`')
+            .toString();
+    }
 }

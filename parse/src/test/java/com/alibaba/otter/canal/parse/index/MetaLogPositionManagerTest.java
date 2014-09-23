@@ -21,7 +21,7 @@ import com.alibaba.otter.canal.protocol.position.PositionRange;
 
 public class MetaLogPositionManagerTest extends AbstractLogPositionManagerTest {
 
-    private static final String MYSQL_ADDRESS = "10.20.153.51";
+    private static final String MYSQL_ADDRESS = "127.0.0.1";
     private ZkClientx           zkclientx     = new ZkClientx(cluster1 + ";" + cluster2);
 
     @Before
