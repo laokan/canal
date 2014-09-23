@@ -11,7 +11,7 @@ import com.alibaba.otter.canal.protocol.position.LogPosition;
 
 public class AbstractLogPositionManagerTest extends AbstractZkTest {
 
-    private static final String MYSQL_ADDRESS = "10.20.153.51";
+    private static final String MYSQL_ADDRESS = "127.0.0.1";
 
     public LogPosition doTest(CanalLogPositionManager logPositionManager) {
         LogPosition getPosition = logPositionManager.getLatestIndexBy(destination);

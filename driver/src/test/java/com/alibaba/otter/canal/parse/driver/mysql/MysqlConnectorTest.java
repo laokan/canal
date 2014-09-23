@@ -14,8 +14,7 @@ public class MysqlConnectorTest {
     @Test
     public void testQuery() {
 
-        MysqlConnector connector = new MysqlConnector(new InetSocketAddress("10.20.144.15", 3306), "ottermysql",
-                                                      "ottermysql");
+        MysqlConnector connector = new MysqlConnector(new InetSocketAddress("127.0.0.1", 3306), "xxxxx", "xxxxx");
         try {
             connector.connect();
             MysqlQueryExecutor executor = new MysqlQueryExecutor(connector);
@@ -34,11 +33,10 @@ public class MysqlConnectorTest {
         }
     }
 
-    //    @Test
+    // @Test
     public void testUpdate() {
 
-        MysqlConnector connector = new MysqlConnector(new InetSocketAddress("10.20.144.15", 3306), "ottermysql",
-                                                      "ottermysql");
+        MysqlConnector connector = new MysqlConnector(new InetSocketAddress("127.0.0.1", 3306), "xxxxx", "xxxxx");
         try {
             connector.connect();
             MysqlUpdateExecutor executor = new MysqlUpdateExecutor(connector);

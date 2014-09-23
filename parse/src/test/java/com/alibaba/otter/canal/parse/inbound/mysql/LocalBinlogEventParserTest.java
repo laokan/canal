@@ -24,9 +24,9 @@ import com.alibaba.otter.canal.sink.exception.CanalSinkException;
 
 public class LocalBinlogEventParserTest {
 
-    private static final String MYSQL_ADDRESS = "10.20.153.51";
-    private static final String USERNAME      = "retl";
-    private static final String PASSWORD      = "retl";
+    private static final String MYSQL_ADDRESS = "127.0.0.1";
+    private static final String USERNAME      = "xxxxx";
+    private static final String PASSWORD      = "xxxxx";
     private String              directory;
 
     @Before
@@ -166,8 +166,9 @@ public class LocalBinlogEventParserTest {
     @Test
     public void test_no_position() throws InterruptedException {
         final TimeoutChecker timeoutChecker = new TimeoutChecker(3 * 1000);
-        final EntryPosition defaultPosition = buildPosition("mysql-bin.000002", null,
-                                                            new Date().getTime() + 1000 * 1000L);
+        final EntryPosition defaultPosition = buildPosition("mysql-bin.000002",
+            null,
+            new Date().getTime() + 1000 * 1000L);
         final AtomicLong entryCount = new AtomicLong(0);
         final EntryPosition entryPosition = new EntryPosition();
 

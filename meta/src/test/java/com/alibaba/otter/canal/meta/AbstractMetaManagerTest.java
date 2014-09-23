@@ -17,7 +17,7 @@ import com.alibaba.otter.canal.protocol.position.PositionRange;
 
 public class AbstractMetaManagerTest extends AbstractZkTest {
 
-    private static final String MYSQL_ADDRESS  = "10.20.153.51";
+    private static final String MYSQL_ADDRESS  = "127.0.0.1";
     protected ClientIdentity    clientIdentity = new ClientIdentity(destination, (short) 1); ;
 
     public void doSubscribeTest(CanalMetaManager metaManager) {
@@ -26,7 +26,7 @@ public class AbstractMetaManagerTest extends AbstractZkTest {
         metaManager.subscribe(client1); // 重复调用
         ClientIdentity client2 = new ClientIdentity(destination, (short) 2);
         metaManager.subscribe(client2);
-        
+
         List<ClientIdentity> clients = metaManager.listAllSubscribeInfo(destination);
         Assert.assertEquals(Arrays.asList(client1, client2), clients);
 

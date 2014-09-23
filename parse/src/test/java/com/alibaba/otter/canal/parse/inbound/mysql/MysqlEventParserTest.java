@@ -25,9 +25,9 @@ import com.alibaba.otter.canal.sink.exception.CanalSinkException;
 public class MysqlEventParserTest {
 
     private static final String DETECTING_SQL = "insert into retl.xdual values(1,now()) on duplicate key update x=now()";
-    private static final String MYSQL_ADDRESS = "10.20.153.51";
-    private static final String USERNAME      = "retl";
-    private static final String PASSWORD      = "retl";
+    private static final String MYSQL_ADDRESS = "127.0.0.1";
+    private static final String USERNAME      = "xxxxx";
+    private static final String PASSWORD      = "xxxxx";
 
     @Test
     public void test_position() throws InterruptedException {
@@ -205,7 +205,7 @@ public class MysqlEventParserTest {
 
             public LogPosition getLatestIndexBy(String destination) {
                 LogPosition masterLogPosition = new LogPosition();
-                masterLogPosition.setIdentity(new LogIdentity(new InetSocketAddress("10.20.153.53", 3306), 1234L));
+                masterLogPosition.setIdentity(new LogIdentity(new InetSocketAddress("127.0.0.1", 3306), 1234L));
                 masterLogPosition.setPostion(new EntryPosition(1322803601000L));
                 return masterLogPosition;
             }
@@ -228,14 +228,16 @@ public class MysqlEventParserTest {
     }
 
     @Test
-    public void test_no_position() throws InterruptedException { // 在某个文件下，找不到对应的timestamp数据，会使用106L position进行数据抓取
+    public void test_no_position() throws InterruptedException { // 在某个文件下，找不到对应的timestamp数据，会使用106L
+                                                                 // position进行数据抓取
         final TimeoutChecker timeoutChecker = new TimeoutChecker(3 * 60 * 1000);
         final AtomicLong entryCount = new AtomicLong(0);
         final EntryPosition entryPosition = new EntryPosition();
 
         final MysqlEventParser controller = new MysqlEventParser();
-        final EntryPosition defaultPosition = buildPosition("mysql-bin.000001", null,
-                                                            new Date().getTime() + 1000 * 1000L);
+        final EntryPosition defaultPosition = buildPosition("mysql-bin.000001",
+            null,
+            new Date().getTime() + 1000 * 1000L);
         controller.setSlaveId(3344L);
         controller.setDetectingEnable(false);
         controller.setMasterInfo(buildAuthentication());
@@ -249,7 +251,8 @@ public class MysqlEventParserTest {
                     entryCount.incrementAndGet();
 
                     // String logfilename = entry.getHeader().getLogfileName();
-                    // long logfileoffset = entry.getHeader().getLogfileOffset();
+                    // long logfileoffset =
+                    // entry.getHeader().getLogfileOffset();
                     long executeTime = entry.getHeader().getExecuteTime();
 
                     // entryPosition.setJournalName(logfilename);

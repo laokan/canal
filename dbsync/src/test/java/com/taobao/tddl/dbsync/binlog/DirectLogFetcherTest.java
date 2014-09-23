@@ -25,9 +25,7 @@ public class DirectLogFetcherTest extends BaseLogFetcherTest {
         DirectLogFetcher fecther = new DirectLogFetcher();
         try {
             Class.forName("com.mysql.jdbc.Driver");
-            Connection connection = DriverManager.getConnection("jdbc:mysql://10.20.151.3:3306",
-                "ottermysql",
-                "ottermysql");
+            Connection connection = DriverManager.getConnection("jdbc:mysql://127.0.0.1:3306", "xxxxx", "xxxxx");
             Statement statement = connection.createStatement();
             statement.execute("SET @master_binlog_checksum='@@global.binlog_checksum'");
             statement.execute("SET @mariadb_slave_capability='" + LogEvent.MARIA_SLAVE_CAPABILITY_MINE + "'");
@@ -47,23 +45,22 @@ public class DirectLogFetcherTest extends BaseLogFetcherTest {
                 int eventType = event.getHeader().getType();
                 switch (eventType) {
                     case LogEvent.ROTATE_EVENT:
-                         binlogFileName = ((RotateLogEvent)
-                         event).getFilename();
+                        binlogFileName = ((RotateLogEvent) event).getFilename();
                         break;
                     case LogEvent.WRITE_ROWS_EVENT_V1:
                     case LogEvent.WRITE_ROWS_EVENT:
-                         parseRowsEvent((WriteRowsLogEvent) event);
+                        parseRowsEvent((WriteRowsLogEvent) event);
                         break;
                     case LogEvent.UPDATE_ROWS_EVENT_V1:
                     case LogEvent.UPDATE_ROWS_EVENT:
-                         parseRowsEvent((UpdateRowsLogEvent) event);
+                        parseRowsEvent((UpdateRowsLogEvent) event);
                         break;
                     case LogEvent.DELETE_ROWS_EVENT_V1:
                     case LogEvent.DELETE_ROWS_EVENT:
-                         parseRowsEvent((DeleteRowsLogEvent) event);
+                        parseRowsEvent((DeleteRowsLogEvent) event);
                         break;
                     case LogEvent.QUERY_EVENT:
-                         parseQueryEvent((QueryLogEvent) event);
+                        parseQueryEvent((QueryLogEvent) event);
                         break;
                     case LogEvent.ROWS_QUERY_LOG_EVENT:
                         parseRowsQueryEvent((RowsQueryLogEvent) event);

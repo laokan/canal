@@ -36,10 +36,10 @@ import com.alibaba.otter.canal.server.netty.CanalServerWithNetty;
 
 public class CanalServerWithNettyTest {
 
-    protected static final String cluster1      = "10.20.153.52:2188";
+    protected static final String cluster1      = "127.0.0.1:2188";
     protected static final String DESTINATION   = "ljhtest1";
     protected static final String DETECTING_SQL = "insert into retl.xdual values(1,now()) on duplicate key update x=now()";
-    protected static final String MYSQL_ADDRESS = "10.20.153.51";
+    protected static final String MYSQL_ADDRESS = "127.0.0.1";
     protected static final String USERNAME      = "retl";
     protected static final String PASSWORD      = "retl";
     protected static final String FILTER        = "retl\\..*,erosa.canaltable1s,erosa.canaltable1t";
@@ -81,10 +81,17 @@ public class CanalServerWithNettyTest {
             Handshake handshake = Handshake.parseFrom(p.getBody());
             System.out.println(handshake.getSupportedCompressionsList());
             //
-            ClientAuth ca = ClientAuth.newBuilder().setUsername("").setNetReadTimeout(10000).setNetWriteTimeout(10000).build();
-            writeWithHeader(
-                            channel,
-                            Packet.newBuilder().setType(PacketType.CLIENTAUTHENTICATION).setBody(ca.toByteString()).build().toByteArray());
+            ClientAuth ca = ClientAuth.newBuilder()
+                .setUsername("")
+                .setNetReadTimeout(10000)
+                .setNetWriteTimeout(10000)
+                .build();
+            writeWithHeader(channel,
+                Packet.newBuilder()
+                    .setType(PacketType.CLIENTAUTHENTICATION)
+                    .setBody(ca.toByteString())
+                    .build()
+                    .toByteArray());
             //
             p = Packet.parseFrom(readNextPacket(channel));
             if (p.getType() != PacketType.ACK) {
@@ -96,12 +103,12 @@ public class CanalServerWithNettyTest {
                 throw new Exception("something goes wrong when doing authentication: " + ack.getErrorMessage());
             }
 
-            writeWithHeader(
-                            channel,
-                            Packet.newBuilder().setType(PacketType.SUBSCRIPTION).setBody(
-                                                                                         Sub.newBuilder().setDestination(
-                                                                                                                         DESTINATION).setClientId(
-                                                                                                                                                  "1").build().toByteString()).build().toByteArray());
+            writeWithHeader(channel,
+                Packet.newBuilder()
+                    .setType(PacketType.SUBSCRIPTION)
+                    .setBody(Sub.newBuilder().setDestination(DESTINATION).setClientId("1").build().toByteString())
+                    .build()
+                    .toByteArray());
             //
             p = Packet.parseFrom(readNextPacket(channel));
             ack = Ack.parseFrom(p.getBody());
@@ -110,13 +117,17 @@ public class CanalServerWithNettyTest {
             }
 
             for (int i = 0; i < 10; i++) {
-                writeWithHeader(
-                                channel,
-                                Packet.newBuilder().setType(PacketType.GET).setBody(
-                                                                                    Get.newBuilder().setDestination(
-                                                                                                                    DESTINATION).setClientId(
-                                                                                                                                             "1").setFetchSize(
-                                                                                                                                                               10).build().toByteString()).build().toByteArray());
+                writeWithHeader(channel,
+                    Packet.newBuilder()
+                        .setType(PacketType.GET)
+                        .setBody(Get.newBuilder()
+                            .setDestination(DESTINATION)
+                            .setClientId("1")
+                            .setFetchSize(10)
+                            .build()
+                            .toByteString())
+                        .build()
+                        .toByteArray());
                 p = Packet.parseFrom(readNextPacket(channel));
 
                 long batchId = -1L;
@@ -140,28 +151,36 @@ public class CanalServerWithNettyTest {
 
                 System.out.println("!!!!!!!!!!!!!!!!! " + batchId);
                 Thread.sleep(1000L);
-                writeWithHeader(
-                                channel,
-                                Packet.newBuilder().setType(PacketType.CLIENTACK).setBody(
-                                                                                          ClientAck.newBuilder().setDestination(
-                                                                                                                                DESTINATION).setClientId(
-                                                                                                                                                         "1").setBatchId(
-                                                                                                                                                                         batchId).build().toByteString()).build().toByteArray());
+                writeWithHeader(channel,
+                    Packet.newBuilder()
+                        .setType(PacketType.CLIENTACK)
+                        .setBody(ClientAck.newBuilder()
+                            .setDestination(DESTINATION)
+                            .setClientId("1")
+                            .setBatchId(batchId)
+                            .build()
+                            .toByteString())
+                        .build()
+                        .toByteArray());
             }
 
-            writeWithHeader(
-                            channel,
-                            Packet.newBuilder().setType(PacketType.CLIENTROLLBACK).setBody(
-                                                                                           ClientRollback.newBuilder().setDestination(
-                                                                                                                                      DESTINATION).setClientId(
-                                                                                                                                                               "1").build().toByteString()).build().toByteArray());
+            writeWithHeader(channel,
+                Packet.newBuilder()
+                    .setType(PacketType.CLIENTROLLBACK)
+                    .setBody(ClientRollback.newBuilder()
+                        .setDestination(DESTINATION)
+                        .setClientId("1")
+                        .build()
+                        .toByteString())
+                    .build()
+                    .toByteArray());
 
-            writeWithHeader(
-                            channel,
-                            Packet.newBuilder().setType(PacketType.UNSUBSCRIPTION).setBody(
-                                                                                           Unsub.newBuilder().setDestination(
-                                                                                                                             DESTINATION).setClientId(
-                                                                                                                                                      "1").build().toByteString()).build().toByteArray());
+            writeWithHeader(channel,
+                Packet.newBuilder()
+                    .setType(PacketType.UNSUBSCRIPTION)
+                    .setBody(Unsub.newBuilder().setDestination(DESTINATION).setClientId("1").build().toByteString())
+                    .build()
+                    .toByteArray());
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -209,7 +228,7 @@ public class CanalServerWithNettyTest {
 
         CanalParameter parameter = new CanalParameter();
 
-        parameter.setZkClusters(Arrays.asList("10.20.153.52:2188"));
+        parameter.setZkClusters(Arrays.asList("127.0.0.1:2188"));
         parameter.setMetaMode(MetaMode.MEMORY);
         parameter.setHaMode(HAMode.HEARTBEAT);
         parameter.setIndexMode(IndexMode.MEMORY);
@@ -219,12 +238,11 @@ public class CanalServerWithNettyTest {
 
         parameter.setSourcingType(SourcingType.MYSQL);
         parameter.setDbAddresses(Arrays.asList(new InetSocketAddress(MYSQL_ADDRESS, 3306),
-                                               new InetSocketAddress(MYSQL_ADDRESS, 3306)));
+            new InetSocketAddress(MYSQL_ADDRESS, 3306)));
         parameter.setDbUsername(USERNAME);
         parameter.setDbPassword(PASSWORD);
-        parameter.setPositions(Arrays.asList(
-                                             "{\"journalName\":\"mysql-bin.000001\",\"position\":6163L,\"timestamp\":1322803601000L}",
-                                             "{\"journalName\":\"mysql-bin.000001\",\"position\":6163L,\"timestamp\":1322803601000L}"));
+        parameter.setPositions(Arrays.asList("{\"journalName\":\"mysql-bin.000001\",\"position\":6163L,\"timestamp\":1322803601000L}",
+            "{\"journalName\":\"mysql-bin.000001\",\"position\":6163L,\"timestamp\":1322803601000L}"));
 
         parameter.setSlaveId(1234L);
 

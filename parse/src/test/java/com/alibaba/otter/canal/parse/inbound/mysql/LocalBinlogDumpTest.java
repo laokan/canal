@@ -29,7 +29,7 @@ public class LocalBinlogDumpTest {
         final LocalBinlogEventParser controller = new LocalBinlogEventParser();
         final EntryPosition startPosition = new EntryPosition("mysql-bin.000006", 4L);
 
-        controller.setMasterInfo(new AuthenticationInfo(new InetSocketAddress("10.20.153.51", 3306), "retl", "retl"));
+        controller.setMasterInfo(new AuthenticationInfo(new InetSocketAddress("127.0.0.1", 3306), "xxxxx", "xxxxx"));
         controller.setConnectionCharset(Charset.forName("UTF-8"));
         controller.setDirectory(directory);
         controller.setMasterPosition(startPosition);

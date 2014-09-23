@@ -31,9 +31,7 @@ public class DirectLogFetcherTest {
             // Statement statement = connection.createStatement();
             // statement.execute("SET @master_binlog_checksum='@@global.binlog_checksum'");
 
-            MysqlConnector connector = new MysqlConnector(new InetSocketAddress("10.20.144.29", 3306),
-                "ottermysql",
-                "ottermysql");
+            MysqlConnector connector = new MysqlConnector(new InetSocketAddress("127.0.0.1", 3306), "xxxxx", "xxxxx");
             connector.connect();
             sendBinlogDump(connector, "mysql-bin.001016", 4L, 3);
 
